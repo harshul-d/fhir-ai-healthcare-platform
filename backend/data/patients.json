@@ -1,0 +1,8 @@
+[
+  {"mrn": "MRN-0001", "first": "Jane", "last": "Doe", "dob": "1985-06-12", "sex": "F",
+   "documents": [{"id":"d1","type":"imaging","title":"Chest X-Ray","date":"06/20/2024","text":"Chest XR shows mild cardiomegaly, no acute infiltrate."}]},
+  {"mrn": "mrn 0001", "first": "Jane", "last": "Doe", "dob": "12 June 1985", "sex": "female",
+   "documents": [{"id":"d2","type":"lab","title":"CBC Panel","date":"2024-07-01","text":"WBC 11.2 (elevated), Hgb 13.1, Plt 250."}]},
+  {"mrn": "MRN-0002", "first": "John", "last": "Smith", "dob": "", "sex": "1",
+   "documents": [{"id":"d3","type":"discharge_summary","title":"Discharge","date":"20240515","text":"Discharged post appendectomy. Stable."}]}
+]

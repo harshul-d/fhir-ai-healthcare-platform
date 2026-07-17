@@ -1,0 +1,3 @@
+mrn,name,dob,gender,doc_type,doc_title,doc_date,note_text
+MRN-0003,Maria Garcia,1990-03-08,f,imaging,MRI Brain,"March 8, 2024",No acute intracranial abnormality.
+MRN-0002,John Smith,,m,lab,Lipid Panel,05/16/2024,LDL 160 mg/dL flagged high.
