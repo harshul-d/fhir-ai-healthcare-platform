@@ -1,0 +1,10 @@
+fastapi>=0.110
+uvicorn[standard]>=0.29
+pydantic>=2.6
+fhir.resources>=7.1.0
+sentence-transformers>=2.6
+chromadb>=0.5
+anthropic>=0.34
+python-dateutil>=2.9
+pytest>=8.0
+httpx>=0.27
