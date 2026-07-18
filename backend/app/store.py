@@ -1,4 +1,3 @@
-import json
 import sqlite3
 from pathlib import Path
 
@@ -53,3 +52,20 @@ def all_bundles():
     rows = conn.execute("SELECT * FROM bundles").fetchall()
     conn.close()
     return [dict(r) for r in rows]
+
+
+def get_summary(cache_key: str):
+    conn = _connect()
+    row = conn.execute("SELECT summary_json FROM summaries WHERE cache_key = ?", (cache_key,)).fetchone()
+    conn.close()
+    return row["summary_json"] if row else None
+
+
+def save_summary(cache_key: str, mrn: str, summary_json: str):
+    conn = _connect()
+    conn.execute(
+        "INSERT OR REPLACE INTO summaries (cache_key, patient_mrn, summary_json) VALUES (?, ?, ?)",
+        (cache_key, mrn, summary_json),
+    )
+    conn.commit()
+    conn.close()
