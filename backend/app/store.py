@@ -69,3 +69,12 @@ def save_summary(cache_key: str, mrn: str, summary_json: str):
     )
     conn.commit()
     conn.close()
+
+def get_summary_by_mrn(mrn: str):
+    conn = _connect()
+    row = conn.execute(
+        "SELECT summary_json FROM summaries WHERE patient_mrn = ? ORDER BY rowid DESC LIMIT 1",
+        (mrn,),
+    ).fetchone()
+    conn.close()
+    return row["summary_json"] if row else None

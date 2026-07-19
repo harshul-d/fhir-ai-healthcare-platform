@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EHR Media Intelligence</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen">
+  <div class="max-w-4xl mx-auto px-4 py-8">
+    <header class="mb-6">
+      <h1 class="text-2xl font-bold text-slate-900">EHR Media Intelligence</h1>
+      <p class="text-sm text-slate-500">Search patient records in plain English.</p>
+    </header>
+
+    <!-- Search + filters -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 mb-6">
+      <label for="search" class="sr-only">Search patient records</label>
+      <div class="flex gap-2">
+        <input id="search" type="text" placeholder="e.g. elevated white blood cells"
+          class="flex-1 border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500"
+          aria-label="Search patient records" />
+        <button id="searchBtn"
+          class="bg-teal-600 hover:bg-teal-700 text-white font-medium px-5 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500">
+          Search
+        </button>
+      </div>
+      <div class="flex flex-wrap gap-3 mt-3 text-sm">
+        <select id="resourceType" aria-label="Filter by resource type"
+          class="border border-slate-300 rounded-lg px-2 py-1">
+          <option value="">All resource types</option>
+          <option value="DiagnosticReport">DiagnosticReport</option>
+          <option value="DocumentReference">DocumentReference</option>
+          <option value="Summary">Summary</option>
+        </select>
+        <label class="flex items-center gap-1">From
+          <input id="startDate" type="date" class="border border-slate-300 rounded-lg px-2 py-1" aria-label="Start date" />
+        </label>
+        <label class="flex items-center gap-1">To
+          <input id="endDate" type="date" class="border border-slate-300 rounded-lg px-2 py-1" aria-label="End date" />
+        </label>
+      </div>
+    </div>
+
+    <!-- States -->
+    <div id="loading" class="hidden text-center py-10 text-slate-500" role="status">Searching…</div>
+    <div id="empty" class="hidden text-center py-10 text-slate-400">No results. Try a different search.</div>
+
+    <!-- Results -->
+    <div id="results" class="space-y-3" aria-live="polite"></div>
+  </div>
+
+  <!-- Detail modal -->
+  <div id="modal" class="hidden fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50"
+    role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="bg-white rounded-xl shadow-lg max-w-lg w-full max-h-[85vh] overflow-y-auto p-6">
+      <div class="flex justify-between items-start mb-3">
+        <h2 id="modalTitle" class="text-lg font-bold text-slate-900"></h2>
+        <button id="closeModal" class="text-slate-400 hover:text-slate-700 text-2xl leading-none focus:outline-none focus:ring-2 focus:ring-teal-500" aria-label="Close">&times;</button>
+      </div>
+      <div id="modalBody" class="text-sm text-slate-700 space-y-4"></div>
+    </div>
+  </div>
+
+  <script>
+    const API = "http://127.0.0.1:8000";
+    const $ = (id) => document.getElementById(id);
+
+    const badgeColor = (t) => ({
+      DiagnosticReport: "bg-blue-100 text-blue-700",
+      DocumentReference: "bg-purple-100 text-purple-700",
+      Summary: "bg-amber-100 text-amber-700",
+    }[t] || "bg-slate-100 text-slate-600");
+
+    async function runSearch() {
+      const query = $("search").value.trim();
+      if (!query) return;
+      $("results").innerHTML = "";
+      $("empty").classList.add("hidden");
+      $("loading").classList.remove("hidden");
+
+      try {
+        const res = await fetch(`${API}/search`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            query,
+            resource_type: $("resourceType").value || null,
+            start_date: $("startDate").value || null,
+            end_date: $("endDate").value || null,
+            top_k: 5,
+          }),
+        });
+        const data = await res.json();
+        renderResults(data.results || []);
+      } catch (e) {
+        $("results").innerHTML = `<p class="text-red-600 text-center">Error: ${e.message}. Is the server running?</p>`;
+      } finally {
+        $("loading").classList.add("hidden");
+      }
+    }
+
+    function renderResults(results) {
+      if (!results.length) { $("empty").classList.remove("hidden"); return; }
+      $("results").innerHTML = results.map((r) => `
+        <button class="w-full text-left bg-white rounded-xl border border-slate-200 shadow-sm p-4 hover:border-teal-400 focus:outline-none focus:ring-2 focus:ring-teal-500"
+          onclick="openPatient('${r.mrn}')">
+          <div class="flex justify-between items-start gap-3">
+            <div>
+              <p class="font-semibold text-slate-900">${r.name} <span class="text-slate-400 font-normal">· ${r.mrn}</span></p>
+              <p class="text-xs text-slate-400">${r.record_date || "undated"}</p>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+              <span class="text-xs px-2 py-0.5 rounded-full ${badgeColor(r.resource_type)}">${r.resource_type}</span>
+              <span class="text-xs text-slate-500">${(r.relevance * 100).toFixed(0)}%</span>
+            </div>
+          </div>
+          <p class="text-sm text-slate-600 mt-2">${r.snippet}</p>
+        </button>
+      `).join("");
+    }
+
+    async function openPatient(mrn) {
+      $("modalTitle").textContent = "Loading…";
+      $("modalBody").innerHTML = "";
+      $("modal").classList.remove("hidden");
+      try {
+        const res = await fetch(`${API}/patient/${mrn}`);
+        const d = await res.json();
+        $("modalTitle").textContent = `${d.name} · ${d.mrn}`;
+        const s = d.summary || {};
+        $("modalBody").innerHTML = `
+          <div>
+            <h3 class="font-semibold text-slate-800 mb-1">AI Summary</h3>
+            <p>${s.summary_text || "No summary available."}</p>
+            <p class="text-xs text-amber-700 mt-2 italic">${s.disclaimer || ""}</p>
+          </div>
+          <div>
+            <h3 class="font-semibold text-slate-800 mb-1">Linked FHIR Resources</h3>
+            <ul class="space-y-1">
+              ${(d.resources || []).map((r) => `
+                <li class="flex justify-between border-b border-slate-100 py-1">
+                  <span><span class="text-xs px-2 py-0.5 rounded-full ${badgeColor(r.resource_type)}">${r.resource_type}</span> ${r.id}</span>
+                  <span class="text-slate-400 text-xs">${r.date || ""}</span>
+                </li>`).join("")}
+            </ul>
+          </div>`;
+      } catch (e) {
+        $("modalBody").innerHTML = `<p class="text-red-600">Error loading patient.</p>`;
+      }
+    }
+
+    function closeModal() { $("modal").classList.add("hidden"); }
+
+    $("searchBtn").addEventListener("click", runSearch);
+    $("search").addEventListener("keydown", (e) => { if (e.key === "Enter") runSearch(); });
+    $("closeModal").addEventListener("click", closeModal);
+    $("modal").addEventListener("click", (e) => { if (e.target === $("modal")) closeModal(); });
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeModal(); });
+  </script>
+</body>
+</html>

@@ -1,3 +1,4 @@
+import json
 from typing import Optional
 
 from fastapi import FastAPI
@@ -5,11 +6,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from backend.app.search import search
-from backend.app.store import get_bundle
+from backend.app.store import get_bundle, get_summary_by_mrn
 
 app = FastAPI(title="EHR Media Intelligence API")
 
-# allow the frontend (opened as a local file / different port) to call us
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -21,7 +21,7 @@ app.add_middleware(
 class SearchQuery(BaseModel):
     query: str
     resource_type: Optional[str] = None
-    start_date: Optional[str] = None      # "YYYY-MM-DD"
+    start_date: Optional[str] = None
     end_date: Optional[str] = None
     top_k: int = 5
 
@@ -45,8 +45,21 @@ def search_endpoint(q: SearchQuery):
 
 @app.get("/patient/{mrn}")
 def patient_detail(mrn: str):
-    """Full bundle for the patient-detail drawer in the UI."""
-    bundle = get_bundle(mrn)
-    if not bundle:
+    """Full AI summary + linked FHIR resources for the detail modal."""
+    row = get_bundle(mrn)
+    if not row:
         return {"error": "not found", "mrn": mrn}
-    return bundle
+
+    bundle = json.loads(row["bundle_json"])
+    resources = []
+    for entry in bundle.get("entry", []):
+        r = entry.get("resource", {})
+        resources.append({
+            "resource_type": r.get("resourceType"),
+            "id": r.get("id"),
+            "date": r.get("date") or r.get("effectiveDateTime") or r.get("birthDate") or "",
+        })
+
+    summary_json = get_summary_by_mrn(mrn)
+    summary = json.loads(summary_json) if summary_json else None
+    return {"mrn": mrn, "name": row["patient_name"], "summary": summary, "resources": resources}
