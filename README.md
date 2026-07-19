@@ -1,4 +1,4 @@
-# EHR Media Intelligence Platform
+# FHIR AI Healthcare Platform
 
 An AI-powered pipeline that ingests messy EHR data, normalizes it to HL7 FHIR (R4B),
 generates clinical summaries, and exposes a semantic search UI for clinicians.
