@@ -6,3 +6,4 @@ __pycache__/
 *.db
 chroma_db/
 .DS_Store
+chroma_path/
